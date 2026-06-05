@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import authRoutes from './routes/authRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
@@ -14,6 +16,9 @@ import reportRoutes from './routes/reportRoutes.js';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -21,14 +26,22 @@ const allowedOrigins = [
 ];
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
 app.use(cors({
   origin(origin, callback) {
     // In development, allow all origins (needed for tunneling tools like ngrok, localtunnel, etc.)
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    // Allow Render URLs and configured origins
+    if (allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
@@ -65,6 +78,15 @@ app.use('/api/reports', reportRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'Server is running' });
+});
+
+// Serve client build in production
+const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(clientDistPath));
+
+// Catch-all: serve index.html for client-side routing (React Router)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientDistPath, 'index.html'));
 });
 
 // Error handling middleware
