@@ -1,6 +1,7 @@
 {
   "name": "ai-finance-tracker",
   "version": "1.0.0",
+  "type": "module",
   "description": "AI Personal Finance Tracker - Full Stack",
   "scripts": {
     "install:all": "cd server && npm install && cd ../client && npm install",
