@@ -40,8 +40,8 @@ app.use(cors({
     if (!origin) {
       return callback(null, true);
     }
-    // Allow Render URLs and configured origins
-    if (allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+    // Allow Render/Vercel URLs and configured origins
+    if (allowedOrigins.includes(origin) || origin.endsWith('.onrender.com') || origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
@@ -80,12 +80,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'Server is running' });
 });
 
-// Serve client build in production
+// Serve client build in production (used by Render/self-hosted)
 const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
 app.use(express.static(clientDistPath));
 
-// Catch-all: serve index.html for client-side routing (React Router)
+// Catch-all: return 404 for unmatched API routes, serve index.html for client-side routing
 app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ success: false, message: 'API route not found' });
+  }
   res.sendFile(path.join(clientDistPath, 'index.html'));
 });
 
